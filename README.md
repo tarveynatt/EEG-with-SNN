@@ -1,0 +1,3 @@
+# EEG-with-SNN
+This is my bachelor paper, focusing on using Spiking Neural Network(SNN) to classify Electroencephalogram(EEG) signals
+#### Updating...
