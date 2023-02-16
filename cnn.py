@@ -98,59 +98,59 @@ def main():
 
     # step 1: train a normal CNN
     temp_state_dict = {}
-    # temp_loss = 1e3
+    temp_loss = 1e3
 
-    # CNN = VGG(vgg='VGG16', category=10)
-    # CNN.to(device)
+    CNN = VGG(vgg='VGG16', category=10)
+    CNN.to(device)
 
-    # optimizer = Adam(CNN.parameters(), lr=args.lr)
-    # scheduler = ReduceLROnPlateau(optimizer, verbose=True)
-    # criterion = nn.CrossEntropyLoss()
+    optimizer = Adam(CNN.parameters(), lr=args.lr)
+    scheduler = ReduceLROnPlateau(optimizer, verbose=True)
+    criterion = nn.CrossEntropyLoss()
 
-    # loss_train = []
-    # loss_test = []
-    # for epoch in tqdm(range(1, args.epoch+1)):
-    #     loss = train(CNN, device, train_loader, optimizer, criterion, scheduler)
-    #     loss_train.append(loss)
-    #     loss = test(CNN, device, test_loader, criterion)
-    #     loss_test.append(loss)
+    loss_train = []
+    loss_test = []
+    for epoch in tqdm(range(1, args.epoch+1)):
+        loss = train(CNN, device, train_loader, optimizer, criterion, scheduler)
+        loss_train.append(loss)
+        loss = test(CNN, device, test_loader, criterion)
+        loss_test.append(loss)
 
-    #     if loss < temp_loss:
-    #         temp_state_dict = CNN.state_dict()
+        if loss < temp_loss:
+            temp_state_dict = CNN.state_dict()
     
-    # plot_loss(loss_train, 'CNN Train Loss')
-    # plot_loss(loss_test, 'CNN Test Loss')
-    # torch.save(temp_state_dict, './models/CNN.mdl')
+    plot_loss(loss_train, 'CNN Train Loss')
+    plot_loss(loss_test, 'CNN Test Loss')
+    torch.save(temp_state_dict, './models/CNN.mdl')
 
-    # # step 2: train a CNN with ReLU replaced to Clamp and Quantize
-    # temp_loss = 1e3
+    # step 2: train a CNN with ReLU replaced to Clamp and Quantize
+    temp_loss = 1e3
 
-    # CNN = VGG(vgg='VGG16', category=10)
-    # CNN.load_state_dict(torch.load('./models/CNN.mdl'))
-    # CNN.to(device)
+    CNN = VGG(vgg='VGG16', category=10)
+    CNN.load_state_dict(torch.load('./models/CNN.mdl'))
+    CNN.to(device)
     
-    # CNN_CQ = VGG(cq=True, category=10)
-    # transfer_cq(CNN, CNN_CQ)
-    # CNN_CQ.to(device)
+    CNN_CQ = VGG(cq=True, category=10)
+    transfer_cq(CNN, CNN_CQ)
+    CNN_CQ.to(device)
 
-    # optimizer = Adam(CNN_CQ.parameters(), lr=args.lr)
-    # scheduler = ReduceLROnPlateau(optimizer, verbose=True)
-    # criterion = nn.CrossEntropyLoss()
+    optimizer = Adam(CNN_CQ.parameters(), lr=args.lr)
+    scheduler = ReduceLROnPlateau(optimizer, verbose=True)
+    criterion = nn.CrossEntropyLoss()
 
-    # loss_train = []
-    # loss_test = []
-    # for epoch in tqdm(range(1, args.epoch+1)):
-    #     loss = train(CNN_CQ, device, train_loader, optimizer, criterion, scheduler)
-    #     loss_train.append(loss)
-    #     loss = test(CNN_CQ, device, test_loader, criterion)
-    #     loss_test.append(loss)
+    loss_train = []
+    loss_test = []
+    for epoch in tqdm(range(1, args.epoch+1)):
+        loss = train(CNN_CQ, device, train_loader, optimizer, criterion, scheduler)
+        loss_train.append(loss)
+        loss = test(CNN_CQ, device, test_loader, criterion)
+        loss_test.append(loss)
 
-    #     if loss < temp_loss:
-    #         temp_state_dict = CNN_CQ.state_dict()
+        if loss < temp_loss:
+            temp_state_dict = CNN_CQ.state_dict()
 
-    # plot_loss(loss_train, 'CNN_CQ Train Loss')
-    # plot_loss(loss_test, 'CNN_CQ Test Loss')
-    # torch.save(temp_state_dict, './models/CNN_CQ.mdl')
+    plot_loss(loss_train, 'CNN_CQ Train Loss')
+    plot_loss(loss_test, 'CNN_CQ Test Loss')
+    torch.save(temp_state_dict, './models/CNN_CQ.mdl')
 
     CNN_CQ = VGG(cq=True, category=10)
     CNN_CQ.load_state_dict(torch.load('./models/CNN_CQ.mdl'))
