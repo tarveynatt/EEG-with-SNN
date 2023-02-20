@@ -12,6 +12,9 @@ from plot import plot_loss
 from time import ctime
 import pickle
 
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 def train(model, device, train_loader, optimizer, criterion, scheduler):
     model.train()
@@ -41,15 +44,15 @@ def test(model, device, test_loader, criterion):
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
             loss_.append(loss.item())
-    print('\nAccuracy: {}/{} ({:.0f}%)\n'.format(correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
-    return sum(loss_)/len(loss_)
+    acc = 100. * correct / len(test_loader.dataset)
+    return sum(loss_)/len(loss_), acc
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Pytorch CIFAR100 VGG16')
     parser.add_argument('--cpu', action='store_true', default=False, help='disable CUDA training')
     parser.add_argument('--seed', type=int, default=2023, help='set random seed for training')
-    parser.add_argument('--batch-size', type=int, default=64, help='set batch size for training')
+    parser.add_argument('--batch-size', type=int, default=256, help='set batch size for training')
     parser.add_argument('--test-batch-size', type=int, default=512, help='set batch size for testing')
     parser.add_argument('--lr', type=float, default=1e-4, help='set learning rate for training')
     parser.add_argument('--epoch', type=int, default=128, help='set number of epochs for training')
@@ -85,7 +88,7 @@ def make_data(args):
 
     return train_loader, test_loader
 
-def save_model(args, current, device, epoch, loss, state_dict):
+def save_model(args, current, device, epoch, loss, state_dict, acc):
     seed = args.seed
     test_batch_size = args.test_batch_size
     train_batch_size = args.train_batch_size
@@ -93,11 +96,15 @@ def save_model(args, current, device, epoch, loss, state_dict):
     
     state = {'time': current,
              'seed': seed,
+             'device': device,
              'learning rate': lr,
              'train batch size': train_batch_size,
              'test batch size': test_batch_size,
              'model structure': f'VGG{args.vgg}',
              'model type': args.stage,
+             'epoch': epoch,
+             'loss': loss,
+             'accuracy': accuracy,
              'model state dict': state_dict}
     
     current = current.replace(' ', '-').replace(':', '-')
@@ -119,6 +126,7 @@ def main():
     t_state_dict = {}
     t_loss = 1e3
     t_epoch = 0
+    t_acc = 0
 
     CNN = VGG(vgg='VGG16', category=10)
     CNN.to(device)
@@ -132,20 +140,22 @@ def main():
     for epoch in tqdm(range(1, args.epoch+1)):
         loss = train(CNN, device, train_loader, optimizer, criterion, scheduler)
         loss_train.append(loss)
-        loss = test(CNN, device, test_loader, criterion)
+        loss, acc = test(CNN, device, test_loader, criterion)
         loss_test.append(loss)
 
-        if loss < temp_loss:
+        if loss < t_loss:
             t_state_dict = CNN.state_dict()
             t_loss = loss
             t_epoch = epoch
+            t_acc = acc
+
 
     current = ctime()
     
     plot_loss(loss_train, 'CNN Train Loss', current)
     plot_loss(loss_test, 'CNN Test Loss', current)
 
-    save_model(args, current, device, t_epoch, t_loss, t_state_dict)
+    save_model(args, current, device, t_epoch, t_loss, t_state_dict, t_acc)
 
     # # step 2: train a CNN with ReLU replaced to Clamp and Quantize
     # temp_loss = 1e3

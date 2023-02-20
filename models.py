@@ -33,6 +33,7 @@ class Clamp(nn.Module):
         out = torch.clamp(x, min=self.min, max=self.max)
         return out
 
+
 class Flatten(nn.Module):
     def __init__(self, shape):
         super(Flatten, self).__init__()
@@ -73,7 +74,6 @@ class VGG(nn.Module):
     def forward(self, x):
         out = self.features(x)
         out = self.avepool(out)
-        out = out.view(out.size(0), -1)
         out = self.classifier(out)
         return out
     
@@ -85,7 +85,7 @@ class VGG(nn.Module):
         for x in cfg:
             if x == 'M':
                 layers += [
-                    nn.AvePool2d(kernel_size=2, stride=2), 
+                    nn.AvgPool2d(kernel_size=2, stride=2), 
                     nn.Dropout2d(0.3)
                     ]
             else:
@@ -119,6 +119,7 @@ class VGG(nn.Module):
 
     def _make_classifier(self):
         return nn.Sequential(
+            nn.Flatten(),
             nn.Linear(25088, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
