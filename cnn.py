@@ -56,6 +56,8 @@ def parse_args():
     parser.add_argument('--category', type=int, default=10, help='set number of categories for classification')
     parser.add_argument('--time-window', type=int, default=10, help='set time window for SNN')
     parser.add_argument('--resume', type=str, default='./models/CNN_CQ.pkl', help='resume model from check point')
+    parser.add_argument('--vgg', type=int, default=16, help='set the sturcture of VGG model')
+    parser.add_argument('--stage', type=str, default='CNN', help='set the stage of training')
 
     # args = parser.parse_args()
     
@@ -83,7 +85,7 @@ def make_data(args):
 
     return train_loader, test_loader
 
-def save_model(args, current, device, epoch, loss, state_dict, model_type, m,odel_sturc):
+def save_model(args, current, device, epoch, loss, state_dict):
     seed = args.seed
     test_batch_size = args.test_batch_size
     train_batch_size = args.train_batch_size
@@ -94,11 +96,12 @@ def save_model(args, current, device, epoch, loss, state_dict, model_type, m,ode
              'learning rate': lr,
              'train batch size': train_batch_size,
              'test batch size': test_batch_size,
-             'model structure': model_struc,
-             'model type': model_type,
+             'model structure': f'VGG{args.vgg}',
+             'model type': args.stage,
              'model state dict': state_dict}
-
-    torch.save(state, f'./models/{model_struc}_{model_type}_{current.replace(' ', '-').replace(':', '-')}.mdl')
+    
+    current = current.replace(' ', '-').replace(':', '-')
+    torch.save(state, f'./models/{model_struc}_{model_type}_{current}.mdl')
 
 def main():
     # initialization
@@ -142,7 +145,7 @@ def main():
     plot_loss(loss_train, 'CNN Train Loss', current)
     plot_loss(loss_test, 'CNN Test Loss', current)
 
-    save_model(args, current, device, t_epoch, t_loss, t_state_dict, 'CNN', 'VGG16')
+    save_model(args, current, device, t_epoch, t_loss, t_state_dict)
 
     # # step 2: train a CNN with ReLU replaced to Clamp and Quantize
     # temp_loss = 1e3
