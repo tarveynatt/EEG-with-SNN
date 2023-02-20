@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
+from time import ctime
 
 
-def plot_loss(data, title):
+def plot_loss(data, title, current):
     fig, ax = plt.subplots()
     ax.set_title(title)
     ax.set_xlabel('epoch')
     ax.plot(data)
-    fig.savefig(f'./results/{title}.jpg')
+
+    current = current.replace(' ', '-').replace(':', '-')
+    fig.savefig(f'./results/{title}_{current}.jpg')

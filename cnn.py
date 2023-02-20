@@ -9,7 +9,7 @@ from tqdm import tqdm
 from models import VGG
 from transfer import fuse, transfer_snn, normalize_weight, transfer_cq
 from plot import plot_loss
-
+from time import ctime
 import pickle
 
 
@@ -83,6 +83,22 @@ def make_data(args):
 
     return train_loader, test_loader
 
+def save_model(args, current, device, epoch, loss, state_dict, model_type, m,odel_sturc):
+    seed = args.seed
+    test_batch_size = args.test_batch_size
+    train_batch_size = args.train_batch_size
+    lr = args.lr
+    
+    state = {'time': current,
+             'seed': seed,
+             'learning rate': lr,
+             'train batch size': train_batch_size,
+             'test batch size': test_batch_size,
+             'model structure': model_struc,
+             'model type': model_type,
+             'model state dict': state_dict}
+
+    torch.save(state, f'./models/{model_struc}_{model_type}_{current.replace(' ', '-').replace(':', '-')}.mdl')
 
 def main():
     # initialization
@@ -97,8 +113,9 @@ def main():
 
 
     # step 1: train a normal CNN
-    temp_state_dict = {}
-    temp_loss = 1e3
+    t_state_dict = {}
+    t_loss = 1e3
+    t_epoch = 0
 
     CNN = VGG(vgg='VGG16', category=10)
     CNN.to(device)
@@ -116,62 +133,67 @@ def main():
         loss_test.append(loss)
 
         if loss < temp_loss:
-            temp_state_dict = CNN.state_dict()
+            t_state_dict = CNN.state_dict()
+            t_loss = loss
+            t_epoch = epoch
+
+    current = ctime()
     
-    plot_loss(loss_train, 'CNN Train Loss')
-    plot_loss(loss_test, 'CNN Test Loss')
-    torch.save(temp_state_dict, './models/CNN.mdl')
+    plot_loss(loss_train, 'CNN Train Loss', current)
+    plot_loss(loss_test, 'CNN Test Loss', current)
 
-    # step 2: train a CNN with ReLU replaced to Clamp and Quantize
-    temp_loss = 1e3
+    save_model(args, current, device, t_epoch, t_loss, t_state_dict, 'CNN', 'VGG16')
 
-    CNN = VGG(vgg='VGG16', category=10)
-    CNN.load_state_dict(torch.load('./models/CNN.mdl'))
-    CNN.to(device)
+    # # step 2: train a CNN with ReLU replaced to Clamp and Quantize
+    # temp_loss = 1e3
+
+    # CNN = VGG(vgg='VGG16', category=10)
+    # CNN.load_state_dict(torch.load('./models/CNN.mdl'))
+    # CNN.to(device)
     
-    CNN_CQ = VGG(cq=True, category=10)
-    transfer_cq(CNN, CNN_CQ)
-    CNN_CQ.to(device)
+    # CNN_CQ = VGG(cq=True, category=10)
+    # transfer_cq(CNN, CNN_CQ)
+    # CNN_CQ.to(device)
 
-    optimizer = Adam(CNN_CQ.parameters(), lr=args.lr)
-    scheduler = ReduceLROnPlateau(optimizer, verbose=True)
-    criterion = nn.CrossEntropyLoss()
+    # optimizer = Adam(CNN_CQ.parameters(), lr=args.lr)
+    # scheduler = ReduceLROnPlateau(optimizer, verbose=True)
+    # criterion = nn.CrossEntropyLoss()
 
-    loss_train = []
-    loss_test = []
-    for epoch in tqdm(range(1, args.epoch+1)):
-        loss = train(CNN_CQ, device, train_loader, optimizer, criterion, scheduler)
-        loss_train.append(loss)
-        loss = test(CNN_CQ, device, test_loader, criterion)
-        loss_test.append(loss)
+    # loss_train = []
+    # loss_test = []
+    # for epoch in tqdm(range(1, args.epoch+1)):
+    #     loss = train(CNN_CQ, device, train_loader, optimizer, criterion, scheduler)
+    #     loss_train.append(loss)
+    #     loss = test(CNN_CQ, device, test_loader, criterion)
+    #     loss_test.append(loss)
 
-        if loss < temp_loss:
-            temp_state_dict = CNN_CQ.state_dict()
+    #     if loss < temp_loss:
+    #         temp_state_dict = CNN_CQ.state_dict()
 
-    plot_loss(loss_train, 'CNN_CQ Train Loss')
-    plot_loss(loss_test, 'CNN_CQ Test Loss')
-    torch.save(temp_state_dict, './models/CNN_CQ.mdl')
+    # plot_loss(loss_train, 'CNN_CQ Train Loss')
+    # plot_loss(loss_test, 'CNN_CQ Test Loss')
+    # torch.save(temp_state_dict, './models/CNN_CQ.mdl')
 
-    CNN_CQ = VGG(cq=True, category=10)
-    CNN_CQ.load_state_dict(torch.load('./models/CNN_CQ.mdl'))
-    CNN_CQ.to(device)
-    # step 3: transfer weight to SNN with weight and bias normalization
-    SNN = VGG(vgg='VGG16', spike=True, category=10)
-    SNN.to(device)
+    # CNN_CQ = VGG(cq=True, category=10)
     # CNN_CQ.load_state_dict(torch.load('./models/CNN_CQ.mdl'))
-    # CNN_CQ = fuse(CNN_CQ)
-    transfer_snn(CNN_CQ, SNN)
-    torch.save(SNN.state_dict(), './models/SNN.mdl')
+    # CNN_CQ.to(device)
+    # # step 3: transfer weight to SNN with weight and bias normalization
+    # SNN = VGG(vgg='VGG16', spike=True, category=10)
+    # SNN.to(device)
+    # # CNN_CQ.load_state_dict(torch.load('./models/CNN_CQ.mdl'))
+    # # CNN_CQ = fuse(CNN_CQ)
+    # transfer_snn(CNN_CQ, SNN)
+    # torch.save(SNN.state_dict(), './models/SNN.mdl')
 
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
 
-    # with torch.no_grad():
-    #     normalize_weight(SNN.features)
-    loss = test(SNN, device, test_loader, criterion)
-    print(loss)
-    loss = test(CNN_CQ, device, test_loader, criterion)
-    print(loss)
-    plot_loss([loss], 'SNN Test Loss')
+    # # with torch.no_grad():
+    # #     normalize_weight(SNN.features)
+    # loss = test(SNN, device, test_loader, criterion)
+    # print(loss)
+    # loss = test(CNN_CQ, device, test_loader, criterion)
+    # print(loss)
+    # plot_loss([loss], 'SNN Test Loss')
 
 
 if __name__ == '__main__':
