@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument('--cpu', action='store_true', default=False, help='disable CUDA training')
     parser.add_argument('--seed', type=int, default=2023, help='set random seed for training')
     parser.add_argument('--batch-size', type=int, default=256, help='set batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=512, help='set batch size for testing')
+    parser.add_argument('--test-batch-size', type=int, default=1024, help='set batch size for testing')
     parser.add_argument('--lr', type=float, default=1e-4, help='set learning rate for training')
     parser.add_argument('--epoch', type=int, default=128, help='set number of epochs for training')
     parser.add_argument('--category', type=int, default=10, help='set number of categories for classification')
