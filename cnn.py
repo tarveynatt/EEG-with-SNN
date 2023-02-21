@@ -104,11 +104,11 @@ def save_model(args, current, device, epoch, loss, state_dict, acc):
              'model type': args.stage,
              'epoch': epoch,
              'loss': loss,
-             'accuracy': accuracy,
+             'accuracy': acc,
              'model state dict': state_dict}
     
     current = current.replace(' ', '-').replace(':', '-')
-    torch.save(state, f'./models/{model_struc}_{model_type}_{current}.mdl')
+    torch.save(state, f'./models/VGG{args.vgg}_{args.stage}_{current}.mdl')
 
 def main():
     # initialization
