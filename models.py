@@ -86,7 +86,7 @@ class VGG(nn.Module):
             if x == 'M':
                 layers += [
                     nn.AvgPool2d(kernel_size=2, stride=2), 
-                    nn.Dropout2d(0.3)
+                    # nn.Dropout2d(0.2)
                     ]
             else:
                 # if self.cq:
@@ -110,7 +110,7 @@ class VGG(nn.Module):
                     nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
                     nn.BatchNorm2d(x),
                     nn.ReLU(inplace=True),
-                    nn.Dropout2d(0.2)
+                    # nn.Dropout2d(0.2)
                     ]
 
                 in_channels = x
@@ -122,10 +122,10 @@ class VGG(nn.Module):
             nn.Flatten(),
             nn.Linear(25088, 4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
+            # nn.Dropout(0.2),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
+            # nn.Dropout(0.2),
             nn.Linear(4096, 1000),
             nn.Linear(1000, self.category)
         )
