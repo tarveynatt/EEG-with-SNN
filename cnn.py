@@ -14,7 +14,7 @@ import pickle
 
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 def train(model, device, train_loader, optimizer, criterion, scheduler):
     model.train()
@@ -91,7 +91,7 @@ def make_data(args):
 def save_model(args, current, device, epoch, loss, state_dict, acc):
     seed = args.seed
     test_batch_size = args.test_batch_size
-    train_batch_size = args.train_batch_size
+    train_batch_size = args.batch_size
     lr = args.lr
     
     state = {'time': current,
