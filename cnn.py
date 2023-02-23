@@ -14,14 +14,14 @@ from spikingjelly.clock_driven import ann2snn
 import numpy as np
 
 import os
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def train(model, device, train_loader, optimizer, criterion, scheduler):
     model.train().to(device)
     loss_ = []
     correct = 0
-    for input, target in tqdm(train_loader):
+    for input, target in train_loader:
         input, target = input.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(input)
@@ -60,15 +60,19 @@ def test(model, device, test_loader, criterion):
     return loss, acc
 
 
-def test_snnn(model, device, test_loader, criterion, T):
+def test_snn(model, device, test_loader, T):
     model.eval().to(device)
     total = 0.
+    # correct = 0
     corrects = np.zeros(T)
     # losses = [0.] * T
 
     with torch.no_grad():
         for input, target in tqdm(test_loader):
             input, target = input.to(device), target.to(device)
+            for m in model.modules():
+                if hasattr(m, 'reset'):
+                    m.reset()
             for t in range(T):
                 if t == 0:
                     output = model(input)
@@ -78,6 +82,7 @@ def test_snnn(model, device, test_loader, criterion, T):
                 # losses[t] += loss.item()
                 pred = output.argmax(dim=1, keepdim=True)
                 corrects[t] += pred.eq(target.view_as(pred)).float().sum().item()
+            # correct += pred.eq(target.view_as(pred)).float().sum().item()
             total += output.shape[0]
     return corrects / total
 
@@ -87,17 +92,17 @@ def parse_args():
     parser.add_argument('--cpu', action='store_true', default=False, help='disable CUDA training')
     parser.add_argument('--seed', type=int, default=2023, help='set random seed for training')
     parser.add_argument('--batch-size', type=int, default=128, help='set batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=1024, help='set batch size for testing')
+    parser.add_argument('--test-batch-size', type=int, default=500, help='set batch size for testing')
     parser.add_argument('--lr', type=float, default=1e-4, help='set learning rate for training')
-    parser.add_argument('--epoch', type=int, default=128, help='set number of epochs for training')
+    parser.add_argument('--epoch', type=int, default=200, help='set number of epochs for training')
     parser.add_argument('--category', type=int, default=10, help='set number of categories for classification')
-    parser.add_argument('--T', type=int, default=64, help='set inference steps for SNN')
+    parser.add_argument('--T', type=int, default=500, help='set inference steps for SNN')
     parser.add_argument('--resume', type=str, default=None, help='resume model from check point')
     parser.add_argument('--vgg', type=int, default=16, help='set the sturcture of VGG model')
-    parser.add_argument('--stage', type=str, default='CNN', help='set the stage of training')
+    parser.add_argument('--stage', type=str, default='SNN', help='set the stage of training')
 
     # args = parser.parse_args()
-    
+
     args = parser.parse_known_args()[0]
 
     return args
@@ -142,7 +147,8 @@ def save_model(args, current, device, epoch, loss, state_dict, acc):
              'model state dict': state_dict}
     
     current = current.replace(' ', '-').replace(':', '-')
-    torch.save(state, f'./models/VGG{args.vgg}_{args.stage}_{current}.mdl')
+    # torch.save(state, f'./models/VGG{args.vgg}_{args.stage}_{round(acc, 2)}_{current}.mdl')
+    torch.save(state, f'./models/VGG{args.vgg}_{args.stage}_{round(acc[-1], 2)}_{current}.mdl')
 
 def main():
     # initialization
@@ -150,15 +156,16 @@ def main():
     device = torch.device('cuda' if not args.cpu and torch.cuda.is_available() else 'cpu')
     print(device)
     torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
 
 
     # prepare datasets
     train_loader, test_loader = make_data(args)
 
 
-    # step 1: train a normal CNN
+    # # step 1: train a normal CNN
     # t_state_dict = {}
-    # t_loss = 1e3
+    # t_loss = 0
     # t_epoch = 0
     # t_acc = 0
 
@@ -173,7 +180,8 @@ def main():
     # loss_test = []
     # acc_train = []
     # acc_test = []
-    # for epoch in tqdm(range(1, args.epoch+1)):
+
+    # for epoch in tqdm(range(args.epoch)):
     #     loss, acc = train(CNN, device, train_loader, optimizer, criterion, scheduler)
     #     loss_train.append(loss)
     #     acc_train.append(acc)
@@ -182,18 +190,18 @@ def main():
     #     loss_test.append(loss)
     #     acc_test.append(acc)
 
-    #     if loss < t_loss:
+    #     if acc > t_acc:
+    #         t_acc = acc
     #         t_state_dict = CNN.state_dict()
     #         t_loss = loss
     #         t_epoch = epoch
-    #         t_acc = acc
 
 
     # current = ctime()
     
     # plot_graph(loss_train, 'CNN Train Loss', current)
     # plot_graph(loss_test, 'CNN Test Loss', current)
-    # plot_graph(acc_test, 'CNN Train Accuracy', current)
+    # plot_graph(acc_train, 'CNN Train Accuracy', current)
     # plot_graph(acc_test, 'CNN Test Accuracy', current)
 
     # save_model(args, current, device, t_epoch, t_loss, t_state_dict, t_acc)
@@ -202,20 +210,24 @@ def main():
     # step 2: convert to snn
     CNN = VGG('VGG16', category=10)
     CNN.to(device)
-    state_dict = torch.load('./models/VGG16_CNN_Tue-Feb-21-17-49-24-2023.mdl')
-    print(state_dict['accuracy'], state_dict['epoch'])
+    state_dict = torch.load('./models/VGG16_CNN_86.79_Thu-Feb-23-21-16-51-2023.mdl')
+    # print(state_dict['accuracy'], state_dict['epoch'])
     
     CNN.load_state_dict(state_dict['model state dict'])
+    criterion = nn.CrossEntropyLoss()
+
+    loss, acc = test(CNN, device, test_loader, criterion)
+    print('CNN accuracy', acc)
 
     converter = ann2snn.Converter(mode='99.9%', dataloader=train_loader)
     SNN = converter(CNN)
-    criterion = nn.CrossEntropyLoss()
     
-    acc = test_snnn(SNN, device, test_loader, criterion, args.T)
+    acc = test_snn(SNN, device, test_loader, args.T)
+    print('SNN Accuracy', acc[-1])
     
     current = ctime()
 
-    plot_graph(acc, 'SNN accuracy', current)
+    plot_graph(acc, 'SNN Accuracy', current)
     # plot_loss(loss, 'SNN loss', current)
 
     save_model(args, current, device, 0, 0, SNN.state_dict(), acc)
