@@ -4,3 +4,4 @@ models/
 test.py
 __pycache__/
 .vscode/
+test.ipynb
