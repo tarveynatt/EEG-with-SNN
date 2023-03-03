@@ -9,5 +9,5 @@ def plot_graph(data, title, current):
     ax.set_xlabel('T')
     ax.plot(data)
 
-    current = current.replace(' ', '-').replace(':', '-')
+    current = current[4:-5].replace(' ', '_').replace(':', '-')
     fig.savefig(f'./results/{title}_{current}.jpg')
