@@ -7,7 +7,7 @@ import argparse
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from models import VGG
-from transfer import fuse, transfer_snn, normalize_weight, transfer_cq
+from transfer import transfer_cq
 from plot import plot_graph
 from time import ctime
 from spikingjelly.clock_driven import ann2snn
@@ -47,7 +47,6 @@ def test(model, device, test_loader, criterion):
     with torch.no_grad():
         for input, target in test_loader:
             input, target = input.to(device), target.to(device)
-            # onehot = nn.functional.one_hot(target, 10)
             output = model(input)
             loss = criterion(output, target)
             
@@ -63,9 +62,7 @@ def test(model, device, test_loader, criterion):
 def test_snn(model, device, test_loader, T):
     model.eval().to(device)
     total = 0.
-    # correct = 0
     corrects = np.zeros(T)
-    # losses = [0.] * T
 
     with torch.no_grad():
         for input, target in tqdm(test_loader):
@@ -78,13 +75,11 @@ def test_snn(model, device, test_loader, T):
                     output = model(input)
                 else:
                     output += model(input)
-                # loss = criterion(output, target)
-                # losses[t] += loss.item()
                 pred = output.argmax(dim=1, keepdim=True)
                 corrects[t] += pred.eq(target.view_as(pred)).float().sum().item()
-            # correct += pred.eq(target.view_as(pred)).float().sum().item()
             total += output.shape[0]
-    return 100. * corrects / total
+    acc = 100. * corrects / total
+    return acc
 
 
 def parse_args():
@@ -227,7 +222,7 @@ def main():
     SNN = converter(CNN)
     
     acc = test_snn(SNN, device, test_loader, args.T)
-    print('SNN Accuracy', acc[-1])
+    print('SNN Accuracy', max(acc))
     
     current = ctime()
 
@@ -242,7 +237,7 @@ def main():
     # t_epoch = 0
     # t_acc = 0
 
-    # CNN = VGG(vgg='VGG16', category=10)
+    # CNN = VGG(vgg='VGG16', category=10, T=args.T)
     # state = torch.load('./models/VGG16_CNN_86.93_Mar_1_13-08-21.mdl')
     # CNN.load_state_dict(state['model state dict'])
     # CNN.to(device)
