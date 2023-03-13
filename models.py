@@ -1,8 +1,5 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
-import snntorch as snn
-from snntorch import surrogate
 
 
 cfg = {
@@ -34,33 +31,22 @@ class Clamp(nn.Module):
         return out
 
 
-class QuantitizedConv2d(nn.Conv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None, nbit=32):
-        super(QuantitizedConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode)
-        self.nbit = nbit
-    
-    def forward(self, input):
-        return F.conv2d(input, self._quantize(self.weight), self.bias, self.stride, self.padding, self.dilation, self.groups, )
-
-    def _quantize(self, x):
-        return torch.mul(torch.round(torch.div(x, 2.0**(1-self.nbit))), 2.0**(1-self.nbit))
-
-
 class VGG(nn.Module):
-    def __init__(self, vgg='VGG16', cq=False, T=32, clamp_min=0, clamp_max=1, spike=False, category=10, nbit=32):
+    def __init__(self, vgg='VGG16', cq=False, T=32, clamp_min=0, clamp_max=1, category=10, in_channels=5):
         super(VGG, self).__init__()
         self.cq = cq
         self.T = T
         self.clamp_min = clamp_min
         self.clamp_max = clamp_max
-        # self.spike = spike
         self.category = category
-        # self.nbit = nbit
+        self.in_channels = in_channels
         self.features = self._make_features(cfg[vgg])
         self.avepool = nn.AdaptiveAvgPool2d(7)
         self.classifier = self._make_classifier()
+        
     
     def forward(self, x):
+        x = x.type(torch.cuda.FloatTensor)
         out = self.features(x)
         out = self.avepool(out)
         out = self.classifier(out)
@@ -68,52 +54,30 @@ class VGG(nn.Module):
     
     def _make_features(self, cfg):
         layers = []
-        in_channels = 3
-        spike_grad = surrogate.fast_sigmoid()
 
         for x in cfg:
             if x == 'M':
                 layers += [
                     nn.AvgPool2d(kernel_size=2, stride=2), 
-                    # nn.Dropout2d(0.2)
                     ]
             else:
-                # if self.cq:
-                #     layers += [
-                #     nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
-                #     # QuantitizedConv2d(in_channels, x, kernel_size=3, padding=1, nbit=self.nbit),
-                #     nn.BatchNorm2d(x),
-                #     Clamp(max=self.clamp_max, min=self.clamp_min),
-                #     Quantize(T=self.T),
-                #     nn.Dropout2d(0.2)
-                #     ]
-                # elif self.spike:
-                #     layers += [
-                #     nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
-                #     # QuantitizedConv2d(in_channels, x, kernel_size=3, padding=1, nbit=self.nbit),
-                #     snn.Leaky(beta=0.5, init_hidden=True, spike_grad=spike_grad),
-                #     nn.Dropout2d(0.2),
-                #     ]
-                # else:
-
                 if self.cq:
                     layers += [
-                    nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
+                    nn.Conv2d(self.in_channels, x, kernel_size=3, padding=1),
                     nn.BatchNorm2d(x),
-                    # nn.ReLU(inplace=True),
                     # nn.Dropout2d(0.5)
                     Clamp(max=self.clamp_max, min=self.clamp_min),
                     Quantize(T=self.T)
                     ]
                 else:
                     layers += [
-                        nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
+                        nn.Conv2d(self.in_channels, x, kernel_size=3, padding=1),
                         nn.BatchNorm2d(x),
                         nn.ReLU(inplace=True),
                         # nn.Dropout2d(0.5)
                         ]
 
-                in_channels = x
+                self.in_channels = x
 
         return nn.Sequential(*layers)
 
